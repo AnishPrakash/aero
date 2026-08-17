@@ -1,0 +1,251 @@
+# power/k8s/controller-deployment.yaml
+# ─────────────────────────────────────────────────────────────────
+# AERO — Dynamic Power Capping Controller
+# Layer 5 of the AERO scheduling stack.
+#
+# This controller exposes a REST API (port 8003) that is called by
+# the API Gateway whenever a job is submitted or released.
+# It applies NVML power caps per priority:
+#   CRITICAL   → 400 W (100% TDP)
+#   INTERACTIVE → 320 W ( 80% TDP)
+#   BATCH       → 240 W ( 60% TDP)
+#   IDLE_WARMTH → 120 W ( 30% TDP)
+#
+# Simulator mode (default): calls aero-simulator /power/throttle.
+# Real GPU mode:            calls PyNVML directly (needs privileged).
+# ─────────────────────────────────────────────────────────────────
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aero-power-controller
+  namespace: aero
+  labels:
+    app: aero-power-controller
+    component: power-layer
+    aero.dev/layer: "5"
+    version: "1.0"
+  annotations:
+    aero.dev/description: "Dynamic per-job GPU power capping controller"
+spec:
+  replicas: 1                       # Singleton — central controller, not per-node
+  selector:
+    matchLabels:
+      app: aero-power-controller
+  strategy:
+    type: Recreate                  # Avoid two controllers racing to set power limits
+  template:
+    metadata:
+      labels:
+        app: aero-power-controller
+        component: power-layer
+        aero.dev/layer: "5"
+    spec:
+      serviceAccountName: aero-power-controller
+
+      # ── Init: wait for the simulator to be reachable before starting ──
+      initContainers:
+        - name: wait-for-simulator
+          image: curlimages/curl:8.7.1
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for aero-simulator..."
+              until curl -sf http://aero-simulator.aero.svc.cluster.local:8001/gpus; do
+                echo "  simulator not ready, retrying in 3s..."
+                sleep 3
+              done
+              echo "Simulator is up."
+
+      containers:
+        - name: power-controller
+          image: aero/power-controller:latest
+          imagePullPolicy: IfNotPresent
+          command: ["python", "power_controller.py"]
+          workingDir: /app
+
+          ports:
+            - name: http
+              containerPort: 8003
+              protocol: TCP
+
+          # ── Environment ────────────────────────────────────────────
+          env:
+            # Where to reach the GPU Simulator (simulator mode)
+            - name: SIMULATOR_URL
+              value: "http://aero-simulator.aero.svc.cluster.local:8001"
+
+            # Set to "true" and enable privileged mode to use real NVML
+            - name: USE_REAL_GPU
+              value: "false"
+
+            # Maximum GPU TDP in Watts — A100 class
+            - name: MAX_TDP_WATTS
+              value: "400.0"
+
+            # Seconds between energy-sample recording ticks
+            - name: POLL_INTERVAL
+              value: "5"
+
+            # Used by uvicorn (FastAPI) for structured logs
+            - name: LOG_LEVEL
+              value: "info"
+
+          # ── Health Probes ───────────────────────────────────────────
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8003
+            initialDelaySeconds: 15   # Give uvicorn time to start
+            periodSeconds: 20
+            failureThreshold: 3
+            timeoutSeconds: 5
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8003
+            initialDelaySeconds: 8
+            periodSeconds: 10
+            failureThreshold: 2
+            timeoutSeconds: 3
+
+          # ── Resources ──────────────────────────────────────────────
+          # Power controller is lightweight (REST API + in-memory ledger).
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+
+          # ── Security Context ────────────────────────────────────────
+          # Default: simulator mode — no special privileges needed.
+          # REAL GPU MODE: comment out allowPrivilegeEscalation and
+          #   uncomment `privileged: true` + the nvidia device volume below.
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false   # uvicorn writes temp files
+            runAsNonRoot: false
+            # ── Uncomment for real NVML GPU power capping ──
+            # privileged: true
+            # capabilities:
+            #   add: ["SYS_ADMIN"]
+
+          # ── Volume Mounts ───────────────────────────────────────────
+          volumeMounts:
+            - name: tmp-dir
+              mountPath: /tmp
+
+            # ── Uncomment for real GPU node with NVML ──
+            # - name: nvidia-dev
+            #   mountPath: /dev/nvidia0
+            # - name: nvidia-nvidiactl
+            #   mountPath: /dev/nvidiactl
+            # - name: nvidia-uvm
+            #   mountPath: /dev/nvidia-uvm
+
+      # ── Volumes ─────────────────────────────────────────────────────
+      volumes:
+        - name: tmp-dir
+          emptyDir: {}
+
+        # ── Uncomment for real NVML GPU access ──
+        # - name: nvidia-dev
+        #   hostPath:
+        #     path: /dev/nvidia0
+        # - name: nvidia-nvidiactl
+        #   hostPath:
+        #     path: /dev/nvidiactl
+        # - name: nvidia-uvm
+        #   hostPath:
+        #     path: /dev/nvidia-uvm
+
+      # ── Scheduling Constraints ───────────────────────────────────────
+      # In simulator mode: run anywhere.
+      # In real GPU mode: uncomment nodeSelector to pin to a GPU node.
+      # nodeSelector:
+      #   accelerator: nvidia-gpu
+      tolerations:
+        - key: "node-role.kubernetes.io/control-plane"
+          operator: "Exists"
+          effect: "NoSchedule"
+
+      restartPolicy: Always
+
+---
+# ─────────────────────────────────────────────────────────────────
+# Service — exposes the power controller inside the cluster.
+# The API Gateway connects to this via:
+#   http://aero-power-controller.aero.svc.cluster.local:8003
+# ─────────────────────────────────────────────────────────────────
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: aero-power-controller
+  namespace: aero
+  labels:
+    app: aero-power-controller
+    component: power-layer
+spec:
+  selector:
+    app: aero-power-controller
+  ports:
+    - name: http
+      port: 8003
+      targetPort: 8003
+      protocol: TCP
+  type: ClusterIP
+
+---
+# ─────────────────────────────────────────────────────────────────
+# ServiceAccount — identity for the power controller pod.
+# No ClusterRole needed in simulator mode.
+# In real mode, add a Role to patch pod annotations with power state.
+# ─────────────────────────────────────────────────────────────────
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: aero-power-controller
+  namespace: aero
+  labels:
+    app: aero-power-controller
+
+---
+# ─────────────────────────────────────────────────────────────────
+# Role + RoleBinding — lets the controller patch pod annotations
+# (e.g. aero.dev/power-cap-watts) so the frontend can display them.
+# Scoped to the aero namespace only.
+# ─────────────────────────────────────────────────────────────────
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: aero-power-controller
+  namespace: aero
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: aero-power-controller
+  namespace: aero
+subjects:
+  - kind: ServiceAccount
+    name: aero-power-controller
+    namespace: aero
+roleRef:
+  kind: Role
+  apiGroup: rbac.authorization.k8s.io
+  name: aero-power-controller
