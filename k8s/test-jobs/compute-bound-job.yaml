@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bert-training-job
+  namespace: aero
+  labels:
+    aero.dev/priority: "INTERACTIVE"
+    aero.dev/tenant: "team-nlp"
+spec:
+  template:
+    metadata:
+      annotations:
+        aero.dev/workload-class: "COMPUTE_BOUND"
+      labels:
+        aero.dev/priority: "INTERACTIVE"
+        aero.dev/tenant: "team-nlp"
+    spec:
+      schedulerName: aero-scheduler
+      restartPolicy: Never
+      containers:
+        - name: bert-train
+          image: python:3.11-slim
+          command: ["python", "-c"]
+          args:
+            - |
+              import time, math
+              print("Simulating BERT training — compute-bound")
+              start = time.time()
+              # Simulate compute-intensive workload
+              while time.time() - start < 90:
+                  _ = sum(math.sqrt(i) for i in range(100000))
+              print("Training complete")
+          resources:
+            limits:
+              cpu: "2"
+              memory: "512Mi"

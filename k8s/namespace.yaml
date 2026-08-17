@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aero
+  labels:
+    project: aero
+    ps: "32"

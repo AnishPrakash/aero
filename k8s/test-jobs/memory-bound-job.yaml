@@ -1,0 +1,37 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: preproc-job
+  namespace: aero
+  labels:
+    aero.dev/priority: "BATCH"
+    aero.dev/tenant: "team-cv"
+spec:
+  template:
+    metadata:
+      annotations:
+        aero.dev/workload-class: "MEMORY_BOUND"
+      labels:
+        aero.dev/priority: "BATCH"
+        aero.dev/tenant: "team-cv"
+    spec:
+      schedulerName: aero-scheduler
+      restartPolicy: Never
+      containers:
+        - name: preproc
+          image: python:3.11-slim
+          command: ["python", "-c"]
+          args:
+            - |
+              import time
+              print("Simulating data preprocessing — memory-bound")
+              # Simulate memory-intensive workload
+              buf = []
+              for i in range(500):
+                  buf.append(bytearray(1024 * 1024))   # 1MB chunks
+                  time.sleep(0.1)
+              print("Preprocessing complete")
+          resources:
+            limits:
+              cpu: "1"
+              memory: "1Gi"
