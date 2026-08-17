@@ -137,6 +137,21 @@ def finish_energy_tracking(job_id: str) -> Optional[dict]:
 from fastapi import FastAPI
 import uvicorn
 
+
+# --- Background Energy Sampler ---
+# Calls record_energy_sample every POLL_INTERVAL
+# seconds for all active jobs in _jobs_state
+def _energy_sampling_loop():
+    while True:
+        time.sleep(POLL_INTERVAL)
+        with _ledger_lock:
+            active = list(_jobs_state.items())
+        for job_id, state in active:
+            record_energy_sample(job_id, state["watts"])
+
+_sampler_thread = threading.Thread(target=_energy_sampling_loop, daemon=True)
+_sampler_thread.start()
+
 app = FastAPI(title="AERO Power Controller", version="1.0")
 
 _jobs_state: Dict[str, dict] = {}   # job_id → {gpu_key, priority, watts, start}
