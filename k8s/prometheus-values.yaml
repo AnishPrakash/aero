@@ -1,0 +1,44 @@
+# Helm values for kube-prometheus-stack
+# helm install monitoring prometheus-community/kube-prometheus-stack \
+#   -f k8s/prometheus-values.yaml -n monitoring --create-namespace
+
+prometheus:
+  prometheusSpec:
+    additionalScrapeConfigs:
+      - job_name: 'aero-simulator'
+        static_configs:
+          - targets: ['aero-simulator.aero.svc.cluster.local:9091']
+        scrape_interval: 5s
+
+      - job_name: 'aero-telemetry'
+        static_configs:
+          - targets: ['aero-telemetry-daemon.aero.svc.cluster.local:9090']
+        scrape_interval: 5s
+
+grafana:
+  enabled: true
+  adminPassword: "aero-demo-2026"
+  dashboards:
+    default:
+      aero-dashboard:
+        json: |
+          {
+            "title": "AERO GPU Dashboard",
+            "panels": [
+              {
+                "title": "GPU Utilization",
+                "type": "timeseries",
+                "targets": [{"expr": "aero_gpu_utilization_percent"}]
+              },
+              {
+                "title": "Power Draw (W)",
+                "type": "timeseries",
+                "targets": [{"expr": "aero_gpu_power_draw_watts"}]
+              },
+              {
+                "title": "Workload Type",
+                "type": "stat",
+                "targets": [{"expr": "aero_interference_class"}]
+              }
+            ]
+          }
