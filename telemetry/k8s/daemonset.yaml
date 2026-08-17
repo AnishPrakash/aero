@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: aero-telemetry-daemon
+  namespace: aero
+  labels:
+    app: aero-telemetry
+spec:
+  selector:
+    matchLabels:
+      app: aero-telemetry
+  template:
+    metadata:
+      labels:
+        app: aero-telemetry
+    spec:
+      hostPID: true
+      containers:
+        - name: daemon
+          image: aero/telemetry-daemon:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: SIMULATOR_URL
+              value: "http://aero-simulator.aero.svc.cluster.local:8001"
+            - name: USE_REAL_GPU
+              value: "false"
+            - name: SCRAPE_INTERVAL
+              value: "5"
+            - name: PROMETHEUS_PORT
+              value: "9090"
+          ports:
+            - containerPort: 9090
+              name: metrics
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
