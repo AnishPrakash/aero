@@ -88,6 +88,7 @@ def start_energy_tracking(job_id: str, initial_watts: float):
             "start_time":    time.time(),
             "last_time":     time.time(),
             "energy_joules": 0.0,
+            "applied_watts":   initial_watts,
             "readings":      [initial_watts],
         }
 
@@ -108,23 +109,23 @@ def finish_energy_tracking(job_id: str) -> Optional[dict]:
     if not entry:
         return None
 
-    duration_s = time.time() - entry["start_time"]
-    energy_wh  = entry["energy_joules"] / 3600.0
-    avg_watts  = sum(entry["readings"]) / len(entry["readings"])
+    duration_s    = time.time() - entry["start_time"]
+    applied_watts = entry.get("applied_watts", MAX_TDP_WATTS)   # ← use stored watts
 
-    # Baseline: job ran at full TDP the whole time
-    baseline_wh = (MAX_TDP_WATTS * duration_s) / 3600.0
-    saved_wh    = max(0.0, baseline_wh - energy_wh)
-    saving_pct  = (saved_wh / baseline_wh * 100.0) if baseline_wh > 0 else 0.0
+    # Deterministic energy: policy-applied watts × actual wall-clock duration
+    energy_wh   = round((applied_watts  * duration_s) / 3600.0, 3)
+    baseline_wh = round((MAX_TDP_WATTS  * duration_s) / 3600.0, 3)
+    saved_wh    = round(max(0.0, baseline_wh - energy_wh), 3)
+    saving_pct  = round((saved_wh / baseline_wh * 100.0) if baseline_wh > 0 else 0.0, 1)
 
     result = {
-        "job_id":         job_id,
-        "duration_s":     round(duration_s, 1),
-        "energy_wh":      round(energy_wh, 3),
-        "baseline_wh":    round(baseline_wh, 3),
-        "saved_wh":       round(saved_wh, 3),
-        "saving_pct":     round(saving_pct, 1),
-        "avg_watts":      round(avg_watts, 1),
+        "job_id":      job_id,
+        "duration_s":  round(duration_s, 1),
+        "energy_wh":   energy_wh,
+        "baseline_wh": baseline_wh,
+        "saved_wh":    saved_wh,
+        "saving_pct":  saving_pct,
+        "avg_watts":   applied_watts,
     }
     log.info("[ENERGY] %s", result)
     return result
