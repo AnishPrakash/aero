@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aero-scheduler-extender
+  namespace: aero
+  labels:
+    app: aero-scheduler-extender
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: aero-scheduler-extender
+  template:
+    metadata:
+      labels:
+        app: aero-scheduler-extender
+    spec:
+      containers:
+        - name: extender
+          image: aero/scheduler-extender:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SIMULATOR_URL
+              value: "http://aero-simulator.aero.svc.cluster.local:8001"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: aero-scheduler-extender
+  namespace: aero
+spec:
+  selector:
+    app: aero-scheduler-extender
+  ports:
+    - port: 8080
+      targetPort: 8080
