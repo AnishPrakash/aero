@@ -85,6 +85,8 @@ def generate_dataset(days: int = 7, interval_minutes: int = 5) -> pd.DataFrame:
 
 if __name__ == "__main__":
     df = generate_dataset(days=7)
-    df.to_csv("forecaster/data/synthetic_telemetry.csv", index=False)
+    import os
+    os.makedirs("data", exist_ok=True)
+    df.to_csv("data/synthetic_telemetry.csv", index=False)
     print(f"Generated {len(df)} rows of synthetic telemetry.")
     print(df.head(10))

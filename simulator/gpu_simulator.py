@@ -208,6 +208,15 @@ class GPUSimulator:
             if gpu_key in self.gpus:
                 self.gpus[gpu_key].current_jobs.clear()
 
+    def delete_job(self, job_id: str) -> bool:
+        with self._lock:
+            for gpu in self.gpus.values():
+                for i, j in enumerate(gpu.current_jobs):
+                    if j.job_id == job_id:
+                        del gpu.current_jobs[i]
+                        return True
+            return False
+
     def snapshot(self) -> List[dict]:
         with self._lock:
             result = []
@@ -281,6 +290,11 @@ def evict(gpu_key_enc: str):
     gpu_key = gpu_key_enc.replace("__", ":")
     simulator.evict_jobs(gpu_key)
     return {"success": True, "gpu_key": gpu_key}
+
+@app.delete("/jobs/{job_id}")
+def delete_job(job_id: str):
+    ok = simulator.delete_job(job_id)
+    return {"success": ok, "job_id": job_id}
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8001)

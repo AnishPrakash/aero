@@ -2,7 +2,9 @@ version: "3.9"
 
 services:
   simulator:
-    build: ./simulator
+    build:
+      context: .
+      dockerfile: simulator/Dockerfile
     image: aero/simulator:latest
     ports:
       - "8001:8001"    # REST
@@ -12,7 +14,8 @@ services:
 
   telemetry:
     build:
-      context: ./telemetry
+      context: .
+      dockerfile: telemetry/Dockerfile
     image: aero/telemetry:latest
     ports:
       - "9090:9090"
@@ -24,7 +27,9 @@ services:
       - aero-net
 
   forecaster:
-    build: ./forecaster
+    build:
+      context: .
+      dockerfile: forecaster/Dockerfile
     image: aero/forecaster:latest
     ports:
       - "8002:8002"
@@ -35,7 +40,9 @@ services:
       - aero-net
 
   power:
-    build: ./power
+    build:
+      context: .
+      dockerfile: power/Dockerfile
     image: aero/power:latest
     ports:
       - "8003:8003"
@@ -47,7 +54,9 @@ services:
       - aero-net
 
   extender:
-    build: ./scheduler
+    build:
+      context: .
+      dockerfile: scheduler/Dockerfile
     image: aero/extender:latest
     ports:
       - "8080:8080"
@@ -59,7 +68,9 @@ services:
       - aero-net
 
   api:
-    build: ./api
+    build:
+      context: .
+      dockerfile: api/Dockerfile
     image: aero/api:latest
     ports:
       - "8000:8000"

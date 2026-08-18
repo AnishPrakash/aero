@@ -11,8 +11,8 @@ import joblib
 from xgboost import XGBRegressor
 from sklearn.metrics import mean_absolute_error, r2_score
 
-os.makedirs("forecaster/models", exist_ok=True)
-os.makedirs("forecaster/data", exist_ok=True)
+os.makedirs("models", exist_ok=True)
+os.makedirs("data", exist_ok=True)
 
 FEATURE_COLS = [
     "hour_sin", "hour_cos",
@@ -25,7 +25,7 @@ FEATURE_COLS = [
 TARGET_COL = "gpu_demand_next_15m"
 
 def load_data() -> pd.DataFrame:
-    path = "forecaster/data/synthetic_telemetry.csv"
+    path = "data/synthetic_telemetry.csv"
     if not os.path.exists(path):
         from data_generator import generate_dataset
         df = generate_dataset(days=7)
@@ -88,8 +88,8 @@ def train():
         "features": extended_features,
         "mae": mae,
         "r2": r2,
-    }, "forecaster/models/demand_forecaster.joblib")
-    print("Model saved to forecaster/models/demand_forecaster.joblib")
+    }, "models/demand_forecaster.joblib")
+    print("Model saved to models/demand_forecaster.joblib")
 
 if __name__ == "__main__":
     train()
