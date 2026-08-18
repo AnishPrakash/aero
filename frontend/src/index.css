@@ -1,0 +1,121 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-display: 'Hanken Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  body {
+    background-color: #0A0A0A;
+    color: #e5e2e1;
+    font-family: var(--font-display);
+  }
+}
+
+/* Custom terminal font utilities */
+.font-display {
+  font-family: 'Hanken Grotesk', sans-serif;
+}
+
+.font-mono-code {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Matrix & Cyber Glow Classes */
+.text-neon {
+  color: #00FF41;
+}
+
+.bg-neon {
+  background-color: #00FF41;
+}
+
+.border-neon {
+  border-color: #00FF41;
+}
+
+.bg-neon-muted {
+  background-color: #0D1F0D;
+}
+
+.text-danger {
+  color: #FF3D00;
+}
+
+.bg-danger {
+  background-color: #FF3D00;
+}
+
+.border-danger {
+  border-color: #FF3D00;
+}
+
+.glow-active {
+  box-shadow: 0 0 10px rgba(0, 255, 65, 0.25);
+}
+
+.glow-text {
+  text-shadow: 0 0 8px rgba(0, 255, 65, 0.4);
+}
+
+.terminal-panel {
+  background-color: #111111;
+  border: 1px solid #1A1A1A;
+}
+
+.terminal-panel:hover {
+  border-color: #2b3b28;
+}
+
+/* Scanline Effect */
+.scanline {
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0) 50%,
+    rgba(0, 0, 0, 0.15) 50%,
+    rgba(0, 0, 0, 0.15)
+  );
+  background-size: 100% 4px;
+  pointer-events: none;
+  z-index: 99;
+  opacity: 0.05;
+}
+
+/* Custom Scrollbar for terminal aesthetic */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0A0A0A;
+  border-left: 1px solid #1A1A1A;
+}
+::-webkit-scrollbar-thumb {
+  background: #1A1A1A;
+  border: 1px solid #00FF41;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #00FF41;
+}
+
+@keyframes pulse-amber {
+  0% { opacity: 0.4; }
+  50% { opacity: 1; box-shadow: 0 0 8px rgba(255, 179, 0, 0.8); }
+  100% { opacity: 0.4; }
+}
+
+.pulse-amber-dot {
+  animation: pulse-amber 1.8s infinite ease-in-out;
+}
+
+@keyframes pulse-green {
+  0% { opacity: 0.4; }
+  50% { opacity: 1; box-shadow: 0 0 8px rgba(0, 255, 65, 0.8); }
+  100% { opacity: 0.4; }
+}
+
+.pulse-green-dot {
+  animation: pulse-green 1.8s infinite ease-in-out;
+}

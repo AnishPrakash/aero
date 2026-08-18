@@ -1,0 +1,6 @@
+{
+  "name": "AERO Orchestration Environment",
+  "description": "Enterprise GPU cluster management and predictive compute allocation dashboard with interactive 3D silicon accelerator explorer, real-time telemetry, energy optimization, and AI forecasting.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
